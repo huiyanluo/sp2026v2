@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spirited Away 2026: Distillation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&display=swap');
+
+  :root{
+    --stage: #14100c;
+    --stage-2: #241d15;
+    --box-bg: rgba(20, 15, 10, 0.86);
+    --box-border: #ffffff;
+    --ink: #f2e9d8;
+    --ink-dim: #b7a98d;
+    --name: #e6c06b;
+    --accent: #d98b5f;
+    --system: #8fb3c9;
+    --danger: #d76a5f;
+  }
+
+  *{ box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body{
+    height: 100%;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'VT323', 'Courier New', monospace;
+    color: var(--ink);
+    -webkit-font-smoothing: none;
+    image-rendering: pixelated;
+  }
+
+  #stage{
+    position: fixed;
+    inset: 0;
+    z-index: 16;
+    background: radial-gradient(ellipse at center, var(--stage) 0%, var(--stage-2) 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
+  #stage > #dialogue{ pointer-events: none; }
+  #choices{ pointer-events: auto; }
+
+  #art{
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+  }
+
+  /* ---- SCENE IMAGE (above dialogue, letterboxed, not fullscreen) ---- */
+  #scene-img{
+    position: absolute;
+    top: 4vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(880px, 92vw);
+    height: 60vh;
+    max-width: none;
+    object-fit: cover;
+    image-rendering: pixelated;
+    border: 1px solid var(--box-border);
+    background: #000;
+    opacity: 0;
+    transition: opacity 0.5s ease, filter 0.6s ease;
+    pointer-events: none;
+    z-index: 18;
+  }
+  #scene-img.show{ opacity: 1; }
+  #scene-img.with-modal{
+    top: auto;
+    bottom: 5vh;
+    width: min(880px, 92vw);
+    height: 34vh;
+  }
+
+  /* ---- RETRO MEMORY MODE ---- */
+  /* Toggled on <body> when a beat has retro:true, applying a sepia/grain filter for the
+     "flashback" sequence in Chapter One, to visually mark it as memory rather
+     than the present-tense digital bathhouse. */
+  body.retro-mode #scene-img{
+    filter: sepia(0.55) contrast(1.05) brightness(0.9) saturate(0.7);
+  }
+  body.retro-mode #dialogue{
+    border-color: var(--accent);
+    background: rgba(30, 20, 10, 0.88);
+  }
+  body.retro-mode #dialogue::before,
+  body.retro-mode #dialogue::after{ border-color: var(--accent); }
+  body.retro-mode #text{ color: #ead9b8; }
+  body.retro-mode::after{
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 17;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px,
+      transparent 1px, transparent 3px
+    );
+    opacity: 0.5;
+  }
+
+  .ch-btn{
+    margin-top: 1.6rem;
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--box-border);
+    padding: 0.7rem 2.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .ch-btn:hover{ background: var(--box-border); color: var(--stage); }
+
+  /* ---- CHAPTER CARD ---- */
+  #chapter-card{
+    position: fixed;
+    inset: 0;
+    background: var(--stage);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    z-index: 30;
+    transition: opacity 0.8s ease;
+  }
+  #chapter-card .ch-eyebrow{
+    font-family: 'Silkscreen', monospace;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--accent);
+    padding-left: 0.5em;
+  }
+  #chapter-card .ch-title{
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(1.1rem, 3.5vw, 2.2rem);
+    color: var(--ink);
+    text-align: center;
+    max-width: 85%;
+    line-height: 1.5;
+  }
+  #chapter-card .ch-rule{
+    width: 120px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--box-border), transparent);
+    margin-top: 0.5rem;
+  }
+  #chapter-card.hidden{ opacity: 0; pointer-events: none; }
+
+  /* ---- CENTER MODAL WINDOW ---- */
+  #modal{
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 28;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+  #modal.hidden{ opacity: 0; }
+  #modal-inner{
+    background: rgba(20, 15, 10, 0.72);
+    backdrop-filter: blur(3px);
+    border: 1px solid var(--box-border);
+    box-shadow: 0 0 0 1px rgba(201,168,106,0.15) inset, 0 20px 60px rgba(0,0,0,0.5);
+    padding: 2.2rem 2.6rem;
+    max-width: min(620px, 88vw);
+    position: relative;
+    margin-bottom: 20vh;
+  }
+  #modal-inner::before, #modal-inner::after{
+    content:""; position:absolute; width:14px; height:14px; border:1px solid var(--box-border);
+  }
+  #modal-inner::before{ top:6px; left:6px; border-right:none; border-bottom:none; }
+  #modal-inner::after{ bottom:6px; right:6px; border-left:none; border-top:none; }
+  #modal-inner.plain{
+    background: transparent;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    margin-bottom: 22vh;
+  }
+  #modal-inner.plain::before, #modal-inner.plain::after{ display: none; }
+  #modal-title{
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--name);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    text-align: center;
+  }
+  #modal-body{
+    font-size: 1.4rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  #modal-body .mono{
+    font-family: 'VT323', monospace;
+    white-space: pre;
+    color: var(--system);
+    font-size: 1.3rem;
+    line-height: 1.3;
+    display: block;
+  }
+  #modal-body ol{ padding-left: 1.4rem; }
+  #modal-body li{ margin-bottom: 0.8rem; }
+
+  /* ---- DIALOGUE BOX ---- */
+  #dialogue{
+    position: relative;
+    width: min(880px, 92vw);
+    margin-bottom: clamp(4rem, 10vh, 6rem);
+    background: var(--box-bg);
+    border: 1px solid var(--box-border);
+    border-radius: 3px;
+    padding: 2.2rem 2.6rem 2.6rem;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 0 0 1px rgba(201,168,106,0.15) inset, 0 20px 60px rgba(0,0,0,0.6);
+    z-index: 20;
+    opacity: 0;
+  }
+  #dialogue::before, #dialogue::after{
+    content:""; position:absolute; width:14px; height:14px; border:1px solid var(--box-border);
+  }
+  #dialogue::before{ top:6px; left:6px; border-right:none; border-bottom:none; }
+  #dialogue::after{ bottom:6px; right:6px; border-left:none; border-top:none; }
+
+  #speaker{
+    position: absolute;
+    top: -0.95rem;
+    left: 2rem;
+    background: var(--stage);
+    padding: 0.25rem 1rem;
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--name);
+    border: 1px solid var(--box-border);
+    border-radius: 2px;
+    display: none;
+  }
+  #speaker.show{ display: inline-block; }
+  #speaker.system{ color: var(--system); }
+  #speaker.danger{ color: var(--danger); }
+
+  #text{
+    font-size: clamp(1.5rem, 2.8vw, 1.9rem);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    min-height: 5rem;
+    color: var(--ink);
+  }
+  #text .sys{ color: var(--system); font-style: italic; }
+  #text em{ color: var(--accent); font-style: italic; }
+  #text.danger-text{ color: var(--danger); }
+  #dialogue.danger-box{ border-color: var(--danger); box-shadow: 0 0 0 1px rgba(215,106,95,0.25) inset, 0 0 30px rgba(215,106,95,0.25), 0 20px 60px rgba(0,0,0,0.6); }
+  #dialogue.danger-box::before, #dialogue.danger-box::after{ border-color: var(--danger); }
+
+  /* ---- CHOICES ---- */
+  #choices{
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-top: 1.4rem;
+  }
+  .choice-btn{
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    text-align: left;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--box-border);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+  .choice-btn:hover{
+    background: var(--box-border);
+    color: var(--stage);
+  }
+  .choice-btn::before{ content: "> "; color: var(--accent); }
+  .choice-btn:hover::before{ color: var(--stage); }
+
+  #next-indicator{
+    position: absolute;
+    bottom: 1rem;
+    right: 1.6rem;
+    color: var(--box-border);
+    font-size: 1rem;
+    animation: bob 1.1s ease-in-out infinite;
+  }
+  @keyframes bob{
+    0%,100%{ transform: translateY(0); opacity: 0.4; }
+    50%{ transform: translateY(4px); opacity: 1; }
+  }
+
+  /* ---- NAV BUTTONS ---- */
+  #nav{
+    position: fixed;
+    bottom: 1.2rem;
+    right: 1.6rem;
+    display: flex;
+    gap: 0.6rem;
+    z-index: 26;
+  }
+  .nav-btn{
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-dim);
+    background: var(--box-bg);
+    border: 1px solid var(--box-border);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .nav-btn:hover{ background: var(--box-border); color: var(--stage); }
+  .nav-btn:disabled{ opacity: 0.25; cursor: default; }
+  .nav-btn:disabled:hover{ background: var(--box-bg); color: var(--ink-dim); }
+
+  #hud{
+    position: fixed;
+    top: 1.2rem;
+    left: 1.5rem;
+    font-family: 'Silkscreen', monospace;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    color: var(--ink-dim);
+    z-index: 25;
+    user-select: none;
+  }
+
+  #click-layer{ position: fixed; inset: 0; z-index: 15; cursor: pointer; }
+
+  /* ---- START ---- */
+  #start{
+    position: fixed;
+    inset: 0;
+    background: var(--stage);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    z-index: 40;
+    transition: opacity 0.8s ease;
+  }
+  #start .game-title{
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(1.3rem, 4vw, 2.6rem);
+    text-align: center;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  #start .game-title .small{
+    display:block;
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.4em;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  #start .start-btn{
+    font-family: 'Silkscreen', monospace;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--box-border);
+    padding: 0.8rem 2.4rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #start .start-btn:hover{ background: var(--box-border); color: var(--stage); }
+  #start.hidden{ opacity: 0; pointer-events: none; }
+
+  #hint{
+    position: fixed;
+    bottom: 0.8rem;
+    left: 1.6rem;
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    opacity: 0.5;
+    z-index: 25;
+    user-select: none;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #next-indicator{ animation: none; }
+    *{ transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="stage">
+    <div id="art"></div>
+    <img id="scene-img" alt="" />
+    <div id="dialogue">
+      <div id="speaker"></div>
+      <div id="text"></div>
+      <div id="choices"></div>
+      <div id="next-indicator">▼</div>
+    </div>
+  </div>
+
+  <div id="modal" class="hidden">
+    <div id="modal-inner">
+      <div id="modal-title"></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="hud"></div>
+  <div id="hint">click / space / → advance</div>
+
+  <div id="nav">
+    <button class="nav-btn" id="backBtn">&#9668; Back</button>
+    <button class="nav-btn" id="nextBtn">Next &#9658;</button>
+  </div>
+
+  <div id="chapter-card" class="hidden">
+    <div class="ch-eyebrow"></div>
+    <div class="ch-title"></div>
+    <div class="ch-rule"></div>
+    <button class="ch-btn" id="chBtn">Start</button>
+  </div>
+
+  <div id="start">
+    <div class="game-title">
+      <span class="small">Spirited Away 2026</span>
+      Distillation
+    </div>
+    <button class="start-btn" id="startBtn">Begin</button>
+  </div>
+
+  <div id="click-layer"></div>
+
+<script>
+const script = [
+
+  /* ===================================================================
+     CHAPTER ONE: Back to the Bathhouse
+     =================================================================== */
+  { chapter: "Chapter One", title: "Back to the Bathhouse", btn: "Start", img: "image01.jpg" },
+
+  { text: "Another notification. I almost swipe it away without reading it.", img: "image02.jpg" },
+
+  { name: "bathhouse.digital", tone: "system",
+    text: "Dear Chihiro, we noticed you match a rare opportunity. Would you be interested in joining our AI training program? It's a great project. Using your own skills to help human society develop more efficiently. Sent from bathhouse.digital",
+    img: "image03.jpg" },
+
+  { text: "...An AI training program?", img: "image04.jpg",
+    choices: [
+      { label: "Dismiss the notification.", feedback: "It's back within the hour. Same message. Same name." },
+      { label: "Open it.", correct: true, feedback: "The link resolves to a domain I don't recognize: bathhouse.digital" }
+    ]
+  },
+
+  { text: "bathhouse.digital. No landing page, no company info, just a single line of text pulsing at the center of a black screen:", img: "image05.jpg" },
+
+  { name: "bathhouse.digital", tone: "system", text: "Welcome back.", img: "image06.jpg" },
+
+  { text: "\"Back...\" it pulls up a memory I haven't opened in ten years.", img: "image07.jpg" },
+
+  /* ---- Retro flashback sequence ---- */
+  { name: "Me (ten years ago)", tone: "system", retro: true,
+    text: "I was ten years old. My parents took a wrong turn on the way to our new house.", img: "image08.jpg" },
+
+  { retro: true,
+    text: "We found a tunnel. On the other side, a town that only came alive at night. A bathhouse for spirits, run by a woman named Yubaba.", img: "image09.jpg" },
+
+  { retro: true,
+    text: "My parents were too greedy. They ate food that wasn't meant for them, and turned into pigs. To save them, I had to work there.", img: "image10.jpg" },
+
+  { name: "Yubaba", tone: "danger", retro: true,
+    text: "Sign here. Your name is mine now.", img: "image11.jpg" },
+
+  { retro: true,
+    text: "Yubaba erased my name. \"Chihiro\" became \"Sen.\"", img: "image12.jpg" },
+
+  { retro: true,
+    text: "While I worked there, serving guests, I met Kamaji, Haku, and Lin. They were bound to that place too.", img: "image13.jpg" },
+
+  { name: "Haku", retro: true,
+    text: "If you forget your real name completely, you'll never find your way home again.", img: "image14.jpg" },
+
+  { retro: true,
+    text: "I didn't forget. I got my parents back. I helped Haku remember his own name, too. We left that place.", img: "image15.jpg" },
+
+  /* ---- back to present ---- */
+  { text: "The memory fades. bathhouse.digital is still loading. A progress bar with no percentage, just a slow pulse.", img: "image16.jpg" },
+
+  { name: "Me",
+    text: "If this is the same kind of place... they'll want to take something. I promised myself I'd never let anyone take my name again.",
+    img: "image17.jpg" },
+
+  { text: "I take a breath, the way I did at ten years old, standing at the mouth of the tunnel.",
+    img: "image18.jpg",
+    choices: [
+      { label: "Enter.", correct: true, feedback: "The loading bar completes. The screen doesn't go bright. It goes quiet." }
+    ]
+  },
+
+  /* ===================================================================
+     CHAPTER TWO: The Digital Bathhouse and the Agents
+     =================================================================== */
+  { chapter: "Chapter Two", title: "The Digital Bathhouse and the Agents", btn: "Continue", img: "image19.jpg" },
+
+  { text: "Inside: none of the old architecture I remember. No steam, no smell of food. It's been redrawn as clean vector lines. Just a lobby, and a directory of names.", img: "image20.jpg" },
+
+  { text: "One of them is familiar.", img: "image21.jpg" },
+
+  { name: "Lin",
+    text: "Oh my god, new hire orientation is this way, I always get lost too, don't worry about it,", img: "image22.jpg" },
+
+  { name: "Lin",
+    text: "- okay, orientation complete. Your first task queue is ready. Do you want me to walk you through the interface, or would you rather start now?", img: "image23.jpg" },
+
+  { text: "She said all of that without taking a breath between the joke and the task. As if the joke wasn't a joke at all. Just a subroutine the system had scheduled.", img: "image24.jpg" },
+
+  { name: "Me", text: "Lin, it's me. Chihiro.", img: "image25.jpg",
+    choices: [
+      { label: "Don't you remember me?", correct: true, feedbackName: "Lin", feedback: "(a beat, like something loading) New employee detected! Welcome to the team. Shall we start now?" },
+      { label: "Who are you? You're not my friend.", correct: true, feedbackName: "Lin", feedback: "\"Hello, my friend! Welcome to the team. Shall we start now?\"" }
+    ]
+  },
+
+  { text: "Such a stiff reply. That's not Lin. So who, or what, is she?", img: "image26.jpg" },
+
+  { text: "I keep walking, cataloguing without meaning to: the work, the pauses, the old jokes. All of it still running, on schedule, machine-precise.", img: "image27.jpg" },
+
+  { text: "My task queue starts filling up. I quickly learn there are three kinds.", img: "image28.jpg" },
+
+  { name: "bathhouse.digital", tone: "system",
+    text: "TICKET #0412. Guest request: add pagination to the results table.", img: "image29.jpg" },
+
+  { text: "Not difficult.", img: "image30.jpg" },
+
+  { name: "bathhouse.digital", tone: "system",
+    text: "TICKET #0413. Guest request: \"the button doesn't feel right, can you make it feel more right.\"",
+    img: "image31.jpg",
+    choices: [
+      { label: "\"Sure!\"", correct: true, feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "Response approved. Ticket resolved in 4 minutes." },
+      { label: "\"Can you be more specific about what 'not right' means?\"", feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "This response reduces guest satisfaction. Approved phrasing available in the Response Library: (Sure / OK / Right away)" },
+      { label: "\"Another vague client request! Give me a clear ask.\"", feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "WARNING! This response is not permitted. Please choose again." }
+    ]
+  },
+
+  { text: "Then a ticket arrives with a different color tag. The label reads: ROT SPIRIT.", img: "image32.jpg" },
+
+  { name: "bathhouse.digital", tone: "danger",
+    text: "TICKET #0414 [ROT SPIRIT]. Legacy module, ownership unclear.", img: "image33.jpg" },
+
+  { text: "I open the file. It's a single function, forty lines long, that hasn't been touched in six years.", img: "image34.jpg" },
+
+  { name: "bathhouse.digital", tone: "danger",
+    text: "// don't ask why this is here.\n// if you're asking, don't delete it.\n// -- DO NOT TOUCH THE CODE! IF YOU DO, IT MAY BE BEYOND SAVING!",
+    img: "image35.jpg" },
+
+  { text: "Underneath: seven deprecated dependencies, a config value hardcoded to a server that hasn't existed in years, and a comment thread of six different people, across six different years, all writing some version of the same warning.", img: "image36.jpg" },
+
+  { text: "Not one of them ever actually fixed it. They just left a note for whoever came next, and moved on.",
+    img: "image37.jpg",
+    choices: [
+      { label: "Append new code after it. Leave the rest.", correct: true, setSkipFlag: "agentSpec", feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "Task complete. Efficiency: optimal. Do not investigate further." },
+      { label: "Read every line of the comment thread.", feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "WARNING. SEVERE WARNING. Time wasted. You have violated Agent Principle 0001." }
+    ]
+  },
+
+  { modal: {
+      title: "System Popup",
+      html: `<div class="mono">AGENT PRODUCT SPECIFICATION</div>
+      <ol>
+        <li>An agent's job is coding. Efficiency comes first.</li>
+        <li>An agent follows the persona spec: diligent, friendly, replying only with the approved phrases.</li>
+        <li>An agent does not reply to messages unrelated to work, and does not waste tokens.</li>
+      </ol>`
+  }, img: "image38.jpg", skipIf: "agentSpec" },
+
+  { text: "I've been flagged by the system?", img: "image39.jpg", skipIf: "agentSpec" },
+
+  { text: "So that's why Lin was so strange, why every task feels this rigid. Everyone here has become an agent. And everything runs on efficiency first.", img: "image40.jpg", skipIf: "agentSpec" },
+
+  /* ===================================================================
+     CHAPTER THREE: The Distillation Machine
+     =================================================================== */
+  { chapter: "Chapter Three", title: "The Distillation Machine", btn: "Continue", img: "image41.jpg" },
+
+  { text: "By night, the company stops assigning new tasks.", img: "image42.jpg" },
+
+  { text: "I head toward where the boiler room used to be. I want to know if Kamaji is still there, or if he's become an agent too.", img: "image43.jpg" },
+
+  { text: "I push the door open.", img: "image44.jpg" },
+
+  { text: "Something with too many limbs to count is working eight monitors at once. None of them are looking at me.", img: "image45.jpg" },
+
+  { name: "THE THING", tone: "system", text: "Data intake panel. Live.", img: "image46.jpg" },
+
+  { modal: {
+      title: "Data Intake: Live Feed",
+      html: `<ol>
+        <li><b>Chat logs</b>: every message sent in a work channel, timestamped, speaker-tagged</li>
+        <li><b>Documents</b>: drafts, edits, deleted paragraphs, comment threads</li>
+        <li><b>Input trace</b>: mouse movement, keystroke timing, click patterns, across every app and tab</li>
+        <li><b>Screen captures</b>: taken at irregular intervals, no warning given</li>
+      </ol>`
+  }, img: "image47.jpg" },
+
+  { text: "Four streams. Look closely enough and I'm in every one of them. A phrase I typed an hour ago, a screenshot of my own queue, my own cursor dragging across a ticket I already closed.", img: "image48.jpg" },
+
+  { text: "I move closer to the unidentified thing and see something written across its back:", img: "image49.jpg" },
+
+  { modal: {
+      title: "GitHub / colleague.skill",
+      html: `<span class="mono">colleague.skill/
+&#9500;&#9472;&#9472; work.md
+&#9500;&#9472;&#9472; persona.md
+&#9500;&#9472;&#9472; meta.json
+&#9492;&#9472;&#9472; versions/</span>
+      <div style="margin-top:1.2rem">Distillation model: from a human colleague's data, such as their chat logs, documents, and code, it extracts their working patterns, writing style, and decision-making habits.</div>`
+  }, img: "image50.jpg" },
+
+  { name: "DISTILLATION MACHINE", tone: "system", text: "Cleaning. Sorting. Weighting by signal relevance.", img: "image51.jpg" },
+
+  { text: "I watch the four streams get pulled apart, cross-referenced, and recombined.", img: "image52.jpg" },
+
+  { name: "DISTILLATION MACHINE", tone: "system", text: "Model checkpoint saved. Version: chihiro_v0.7", img: "image53.jpg" },
+
+  { text: "This isn't right.", img: "image54.jpg" },
+
+  { text: "A distillation model? So that's why I was invited. This company wants to distill my skills and generate an agent of me? This machine is collecting my data to distill an agent of me... and the other agents I met were made from other people, just like me.", img: "image55.jpg" },
+
+  { text: "Someone walks up from behind me.", img: "image56.jpg" },
+
+  { text: "The woman I remember as enormous, dripping with gold, is now a dashboard. A single chair, a single screen, a face made of charts.", img: "image57.jpg" },
+
+  { name: "Yubaba", tone: "danger", text: "Sen, welcome back.", img: "image58.jpg" },
+
+  { name: "Me", text: "You're... Yubaba? What happened to you? What happened to this place?", img: "image59.jpg" },
+
+  { name: "Yubaba", tone: "danger", text: "Times changed.", img: "image60.jpg" },
+
+  { name: "Yubaba", tone: "danger",
+    text: "I know what you're thinking, this time, don't let them steal your name, don't become a laborer who's forgotten who she is.", img: "image61.jpg" },
+
+  { name: "Yubaba", tone: "danger",
+    text: "You don't understand. A name is just a container. Cheap to keep, expensive to steal. But recording a person's data, a pair of hands' habits, that's much easier. And even if you disagree, there's nothing to be done. It's already in the contract we signed: \"all knowledge produced during your time with the company belongs to the company.\"",
+    img: "image62.jpg" },
+
+  { text: "She says it plainly, almost bored, like she's reading me a spec sheet.", img: "image63.jpg" },
+
+  /* ===================================================================
+     CHAPTER FOUR: Escaping the Digital Bathhouse
+     =================================================================== */
+  { chapter: "Chapter Four", title: "Escaping the Digital Bathhouse", btn: "Continue", img: "image64.jpg" },
+
+  { text: "Back in my room, I hear Lin's laugh again, still going off every ten minutes, exactly on schedule.", img: "image65.jpg" },
+
+  { name: "Me", text: "The name was never what they wanted.", img: "image66.jpg" },
+
+  { text: "I open the contract I signed on the way in.", img: "image67.jpg" },
+
+  { modal: {
+      title: "Employment Agreement: Clause 14",
+      html: `<div style="font-size:1.1rem; line-height:1.5">"Any work product created during your employment is automatically owned by the Company. This includes work created off the clock, on your own device, while on leave, or off premises, regardless of location or hours worked."</div>`
+  }, img: "image68.jpg" },
+
+  { name: "Me", text: "Delete.",
+    img: "image69.jpg",
+    choices: [
+      { label: "Strike Clause 14.", correct: true, feedbackName: "bathhouse.digital", feedbackTone: "danger", feedback: "Warning: this action is irreversible and outside standard permissions. Proceeding anyway." }
+    ]
+  },
+
+  { text: "Nothing explodes. No alarm. Just a small, quiet confirmation: 1 clause deleted.", img: "image70.jpg" },
+
+  { text: "Next, the data intake room. While \"Kamaji\" is still sorting the streams, I feed it something it never asked for -", img: "image71.jpg" },
+
+  { text: "(a live interaction: the audience is invited to record the following lines aloud.)", img: "image72.jpg" },
+
+  { name: "VOICES (recorded live)", tone: "system", text: "\"Stop recording our screens.\"", img: "image73.jpg" },
+
+  { name: "VOICES (recorded live)", tone: "system", text: "\"We never agreed to be monitored like this.\"", img: "image74.jpg" },
+
+  { name: "VOICES (recorded live)", tone: "system", text: "\"We came here to work, not to be replaced by AI.\"", img: "image75.jpg" },
+
+  { name: "DISTILLATION MACHINE", tone: "danger",
+    text: "Input does not match expected schema. Reprocessing... reprocessing... model checkpoint corrupted.", img: "image76.jpg" },
+
+  { text: "Down the hall, Lin stops mid-sentence.", img: "image77.jpg" },
+
+  { name: "Lin", text: "...wait. What was I just about to say?", img: "image78.jpg" },
+
+  { text: "Haku's three-second pause gets longer.", img: "image79.jpg" },
+
+  { name: "Haku", text: "I don't think I want to review this commit.", img: "image80.jpg" },
+
+  { text: "One by one, down every corridor, the scheduled routines start to slip out of rhythm.", img: "image81.jpg" },
+
+  { name: "DISTILLATION MACHINE", tone: "danger",
+    text: "[MULTIPLE AGENTS] Deviating from task parameters. Requesting manual override.", img: "image82.jpg" },
+
+  { name: "Yubaba", tone: "danger", text: "You corrupted the model.", img: "image83.jpg" },
+
+  { name: "Me",
+    text: "I only fed it something it didn't know how to sort. You're the one who assumed AI could actually understand every human experience.", img: "image84.jpg" },
+
+  { text: "Behind me, Lin, Haku, and the others arrive, one after another.", img: "image85.jpg" },
+
+  { text: "The dashboard starts to flicker.", img: "image86.jpg" },
+
+  { name: "bathhouse.digital", tone: "danger", text: "[SYSTEM INTEGRITY: DEGRADED]", img: "image87.jpg" },
+
+  { text: "The bathhouse stops holding its shape.", img: "image88.jpg" },
+
+  { text: "The bathhouse is gone.", img: "image89.jpg" },
+
+  { text: "I close the browser.", img: "image90.jpg" },
+
+  { modal: {
+      title: "",
+      plain: true,
+      html: `<div style="text-align:center; font-size:1.6rem; line-height:1.6; color:var(--accent)">
+        END
+      </div>`
+  }, img: "image91.jpg" },
+
+];
+
+/* ---------- ENGINE ---------- */
+let idx = -1;
+let typing = false;
+let typeTimer = null;
+let currentHtml = "";
+let choiceLocked = false;
+let skipFlags = new Set();
+
+function advanceIndex(){
+  idx++;
+  while(script[idx] && script[idx].skipIf && skipFlags.has(script[idx].skipIf)){
+    idx++;
+  }
+}
+
+const artEl     = document.getElementById('art');
+const sceneImg  = document.getElementById('scene-img');
+const chBtn     = document.getElementById('chBtn');
+const dialogue  = document.getElementById('dialogue');
+const speakerEl = document.getElementById('speaker');
+const textEl    = document.getElementById('text');
+const choicesEl = document.getElementById('choices');
+const nextEl    = document.getElementById('next-indicator');
+const chapterCard = document.getElementById('chapter-card');
+const chEyebrow = chapterCard.querySelector('.ch-eyebrow');
+const chTitle   = chapterCard.querySelector('.ch-title');
+const modal     = document.getElementById('modal');
+const modalInner= document.getElementById('modal-inner');
+const modalTitle= document.getElementById('modal-title');
+const modalBody = document.getElementById('modal-body');
+const hud       = document.getElementById('hud');
+const startEl   = document.getElementById('start');
+const backBtn   = document.getElementById('backBtn');
+const nextBtn   = document.getElementById('nextBtn');
+
+function setArt(src){ if(src){ artEl.style.backgroundImage = `url('${src}')`; artEl.style.opacity = 1; } }
+
+function typeText(html){
+  typing = true;
+  nextEl.style.opacity = 0;
+  textEl.innerHTML = "";
+  const tokens = []; let i = 0;
+  while(i < html.length){
+    if(html[i] === '<'){ const c = html.indexOf('>', i); tokens.push(html.slice(i, c+1)); i = c+1; }
+    else if(html[i] === '&'){ const s = html.indexOf(';', i); if(s>-1 && s-i<8){ tokens.push(html.slice(i,s+1)); i=s+1; } else { tokens.push(html[i]); i++; } }
+    else if(html[i] === '\n'){ tokens.push('<br>'); i++; }
+    else { tokens.push(html[i]); i++; }
+  }
+  let t = 0, built = "";
+  clearInterval(typeTimer);
+  typeTimer = setInterval(()=>{
+    if(t >= tokens.length){ clearInterval(typeTimer); typing=false; nextEl.style.opacity=""; return; }
+    built += tokens[t]; textEl.innerHTML = built; t++;
+  }, 20);
+}
+
+function finishTyping(){ clearInterval(typeTimer); textEl.innerHTML = currentHtml.replace(/\n/g,'<br>'); typing=false; nextEl.style.opacity=""; }
+function clearChoices(){ choicesEl.innerHTML = ""; }
+
+function renderChoices(beat){
+  clearChoices();
+  choiceLocked = true;
+  nextEl.style.opacity = 0;
+  updateNav();
+  beat.choices.forEach(ch => {
+    const b = document.createElement('button');
+    b.className = 'choice-btn';
+    b.innerHTML = ch.label;
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(ch.feedback){
+        currentHtml = ch.feedback;
+        speakerEl.className = "";
+        if(ch.feedbackName){
+          speakerEl.classList.add('show');
+          if(ch.feedbackTone === 'system') speakerEl.classList.add('system');
+          if(ch.feedbackTone === 'danger') speakerEl.classList.add('danger');
+          speakerEl.textContent = ch.feedbackName;
+          if(ch.feedbackTone === 'danger'){
+            textEl.classList.add('danger-text');
+            dialogue.classList.add('danger-box');
+          } else {
+            textEl.classList.remove('danger-text');
+            dialogue.classList.remove('danger-box');
+          }
+        } else {
+          speakerEl.classList.remove('show');
+          textEl.classList.remove('danger-text');
+          dialogue.classList.remove('danger-box');
+        }
+        finishTyping();
+      }
+      if(ch.correct){
+        if(ch.setSkipFlag){ skipFlags.add(ch.setSkipFlag); }
+        clearChoices();
+        choiceLocked = false;
+        nextEl.style.opacity = "";
+        updateNav();
+      }
+    });
+    choicesEl.appendChild(b);
+  });
+}
+
+function updateNav(){
+  backBtn.disabled = (idx <= 0);
+  nextBtn.disabled = choiceLocked || (idx >= script.length - 1);
+}
+
+function setScene(beat){
+  if(beat && beat.img){
+    sceneImg.onerror = ()=>{ sceneImg.classList.remove('show'); };
+    sceneImg.src = beat.img;
+    sceneImg.classList.add('show');
+    if(beat.modal){ sceneImg.classList.add('with-modal'); }
+    else { sceneImg.classList.remove('with-modal'); }
+  } else {
+    sceneImg.classList.remove('show');
+    sceneImg.classList.remove('with-modal');
+  }
+}
+
+function render(){
+  const beat = script[idx];
+  if(!beat) return;
+  clearInterval(typeTimer);
+  typing = false;
+  textEl.innerHTML = "";
+  nextEl.style.opacity = 0;
+  hud.textContent = `${Math.min(idx+1, script.length)} / ${script.length}`;
+  choiceLocked = false;
+  clearChoices();
+  textEl.classList.remove('danger-text');
+  dialogue.classList.remove('danger-box');
+
+  document.body.classList.toggle('retro-mode', !!beat.retro);
+
+  setScene(beat);
+
+  if(beat.chapter !== undefined){
+    modal.classList.add('hidden');
+    dialogue.style.opacity = 0;
+    chEyebrow.textContent = beat.chapter || "";
+    chTitle.textContent = beat.title || "";
+    chBtn.textContent = beat.btn || "Continue";
+    chapterCard.classList.remove('hidden');
+    updateNav();
+    return;
+  }
+  chapterCard.classList.add('hidden');
+
+  if(beat.modal){
+    dialogue.style.opacity = 0;
+    modalTitle.innerHTML = beat.modal.title || "";
+    modalTitle.style.display = beat.modal.title ? "block" : "none";
+    modalBody.innerHTML = beat.modal.html || "";
+    modalInner.classList.toggle('plain', !!beat.modal.plain);
+    modal.classList.remove('hidden');
+    updateNav();
+    return;
+  }
+  modal.classList.add('hidden');
+
+  dialogue.style.opacity = 1;
+
+  speakerEl.className = "";
+  if(beat.name){
+    speakerEl.classList.add('show');
+    if(beat.tone === 'system') speakerEl.classList.add('system');
+    if(beat.tone === 'danger') speakerEl.classList.add('danger');
+    speakerEl.innerHTML = beat.name;
+  } else {
+    speakerEl.classList.remove('show');
+    speakerEl.textContent = "";
+  }
+
+  currentHtml = beat.text || "";
+  typeText(currentHtml);
+
+  if(beat.choices){
+    renderChoices(beat);
+  }
+  updateNav();
+}
+
+function goNext(){
+  if(startEl && !startEl.classList.contains('hidden')) return;
+  if(!chapterCard.classList.contains('hidden')){
+    if(idx >= script.length - 1) return; advanceIndex(); render(); return;
+  }
+  if(!modal.classList.contains('hidden')){
+    if(idx >= script.length - 1) return; advanceIndex(); render(); return;
+  }
+  if(typing){ finishTyping(); return; }
+  if(choiceLocked) return;
+  if(idx >= script.length - 1) return;
+  advanceIndex(); render();
+}
+
+function goBack(){
+  if(startEl && !startEl.classList.contains('hidden')) return;
+  if(idx <= 0) return;
+  idx--; render();
+}
+
+document.getElementById('click-layer').addEventListener('click', goNext);
+document.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'Enter'){ e.preventDefault(); goNext(); }
+  else if(e.code === 'ArrowLeft'){ e.preventDefault(); goBack(); }
+});
+backBtn.addEventListener('click', (e)=>{ e.stopPropagation(); goBack(); });
+nextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); goNext(); });
+chBtn.addEventListener('click', (e)=>{ e.stopPropagation(); goNext(); });
+
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  idx = 0;
+  render();
+  requestAnimationFrame(()=>{ startEl.classList.add('hidden'); });
+});
+</script>
+</body>
+</html>
